@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Roblox-Style 3D Clicker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Babylon.js CDN -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+  <script src="https://cdn.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+  <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #020617, #020617 35%, #000 80%);
+      color: #f9fafb;
+    }
+    #renderCanvas {
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      display: block;
+    }
+
+    /* HUD TOP */
+    .hud-top {
+      position: fixed;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 16px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      backdrop-filter: blur(12px);
+      font-size: 13px;
+      pointer-events: none;
+      z-index: 50;
+    }
+    .hud-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      pointer-events: auto;
+    }
+    .hud-label {
+      opacity: 0.7;
+    }
+    .hud-value {
+      font-weight: 600;
+      color: #a5b4fc;
+      min-width: 60px;
+      text-align: left;
+    }
+
+    /* BOTTOM BUTTONS */
+    .hud-bottom {
+      position: fixed;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      padding: 4px;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #4f46e5, #8b5cf6);
+      color: #e5e7eb;
+      box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      letter-spacing: 0.02em;
+      border: 1px solid rgba(191, 219, 254, 0.4);
+      touch-action: manipulation;
+    }
+    .btn:active {
+      transform: translateY(1px) scale(0.98);
+      box-shadow: 0 5px 16px rgba(59, 130, 246, 0.5);
+    }
+    .btn-secondary {
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.9);
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.9);
+      color: #e5e7eb;
+    }
+
+    /* VIRTUELLES D-PAD / JOYSTICK */
+    .hud-joystick {
+      position: fixed;
+      bottom: 12px;
+      left: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 60;
+      pointer-events: none;
+    }
+    .joy-row {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+    }
+    .joy-btn {
+      pointer-events: auto;
+      width: 52px;
+      height: 52px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.9);
+      background: rgba(15, 23, 42, 0.9);
+      color: #e5e7eb;
+      font-size: 20px;
+      font-weight: 600;
+      box-shadow: 0 8px 25px rgba(15, 23, 42, 0.9);
+      touch-action: none;
+    }
+    .joy-btn.joy-active {
+      background: linear-gradient(135deg, #4f46e5, #8b5cf6);
+      box-shadow: 0 6px 20px rgba(59, 130, 246, 0.7);
+      transform: translateY(1px) scale(0.97);
+    }
+
+    /* PANELS */
+    .panel {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: min(480px, 94vw);
+      max-height: 80vh;
+      background: radial-gradient(circle at top left, #1e293b, #020617 60%);
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      box-shadow: 0 30px 80px rgba(15, 23, 42, 0.95);
+      padding: 16px 18px 12px;
+      display: none;
+      flex-direction: column;
+      color: #e5e7eb;
+      z-index: 60;
+      backdrop-filter: blur(16px);
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .panel-title {
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 13px;
+      opacity: 0.9;
+    }
+    .panel-close {
+      border-radius: 999px;
+      border: none;
+      width: 26px;
+      height: 26px;
+      background: rgba(15, 23, 42, 0.9);
+      cursor: pointer;
+      color: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      padding-bottom: 2px;
+    }
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding-top: 6px;
+      padding-right: 2px;
+      font-size: 13px;
+    }
+    .panel-footer {
+      margin-top: 10px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+    .panel-section-title {
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.7;
+      margin: 8px 0 4px;
+    }
+
+    .egg-list, .world-list, .upgrade-list, .pet-list, .leaderboard-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .egg-item, .world-item, .upgrade-item, .pet-item, .leaderboard-item {
+      padding: 7px 9px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .egg-main, .world-main, .upgrade-main, .pet-main, .leaderboard-main {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .egg-name, .world-name, .upgrade-name, .pet-name, .leaderboard-name {
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .egg-meta, .world-meta, .upgrade-meta, .pet-meta, .leaderboard-meta {
+      font-size: 11px;
+      opacity: 0.7;
+    }
+    .badge {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.8);
+      opacity: 0.85;
+    }
+    .badge-rare { color: #38bdf8; border-color: rgba(56, 189, 248, 0.9); }
+    .badge-epic { color: #a855f7; border-color: rgba(168, 85, 247, 0.95); }
+    .badge-legendary { color: #facc15; border-color: rgba(250, 204, 21, 0.95); }
+    .badge-you { color: #22c55e; border-color: rgba(34, 197, 94, 0.95); }
+
+    .label-soft {
+      font-size: 10px;
+      opacity: 0.65;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+    }
+
+    /* HINT */
+    .hint-top-left {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      font-size: 11px;
+      opacity: 0.8;
+      background: rgba(15, 23, 42, 0.9);
+      padding: 6px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(55, 65, 81, 0.8);
+      backdrop-filter: blur(10px);
+      z-index: 40;
+    }
+
+    @media (max-width: 640px) {
+      .hud-top {
+        top: 6px;
+        padding: 6px 10px;
+        font-size: 11px;
+        flex-wrap: wrap;
+      }
+      .btn {
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+      .hint-top-left {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <!-- HUD -->
+  <div class="hud-top">
+    <div class="hud-pill">
+      <span class="hud-label">Clicks</span>
+      <span id="hud-clicks" class="hud-value">0</span>
+    </div>
+    <div class="hud-pill">
+      <span class="hud-label">Coins</span>
+      <span id="hud-coins" class="hud-value">0</span>
+    </div>
+    <div class="hud-pill">
+      <span class="hud-label">Rebirths</span>
+      <span id="hud-rebirths" class="hud-value">0</span>
+    </div>
+    <div class="hud-pill">
+      <span class="hud-label">Prestige</span>
+      <span id="hud-prestige" class="hud-value">0</span>
+    </div>
+    <div class="hud-pill">
+      <span class="hud-label">World</span>
+      <span id="hud-world" class="hud-value">Grassland</span>
+    </div>
+  </div>
+
+  <div class="hint-top-left">
+    Kamera & Crystal: Touch / Drag &bull; Bewegung: D-Pad links unten
+  </div>
+
+  <div class="hud-bottom">
+    <button id="btn-click" class="btn">Click +<span id="hud-click-power">1</span></button>
+    <button id="btn-eggs" class="btn-secondary">Eier / Pets</button>
+    <button id="btn-upgrades" class="btn-secondary">Upgrades</button>
+    <button id="btn-rebirth" class="btn-secondary">Rebirth</button>
+    <button id="btn-prestige" class="btn-secondary">Prestige</button>
+    <button id="btn-worlds" class="btn-secondary">Welten</button>
+    <button id="btn-leaderboard" class="btn-secondary">Leaderboard</button>
+  </div>
+
+  <!-- Virtuelles D-Pad -->
+  <div class="hud-joystick">
+    <div class="joy-row">
+      <button id="joy-up" class="joy-btn">▲</button>
+    </div>
+    <div class="joy-row">
+      <button id="joy-left" class="joy-btn">◀</button>
+      <button id="joy-down" class="joy-btn">▼</button>
+      <button id="joy-right" class="joy-btn">▶</button>
+    </div>
+  </div>
+
+  <!-- Panels -->
+  <div id="panel-eggs" class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Eier &amp; Pets</div>
+      <button class="panel-close" data-close="panel-eggs">×</button>
+    </div>
+    <div class="panel-body">
+      <div class="panel-section-title">Eier</div>
+      <div id="egg-list" class="egg-list"></div>
+      <div class="panel-section-title" style="margin-top: 12px;">Deine Pets</div>
+      <div id="pet-list" class="pet-list"></div>
+    </div>
+  </div>
+
+  <div id="panel-upgrades" class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Upgrades</div>
+      <button class="panel-close" data-close="panel-upgrades">×</button>
+    </div>
+    <div class="panel-body">
+      <div class="panel-section-title">Permanent</div>
+      <div id="upgrade-list" class="upgrade-list"></div>
+    </div>
+  </div>
+
+  <div id="panel-rebirth" class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Rebirth</div>
+      <button class="panel-close" data-close="panel-rebirth">×</button>
+    </div>
+    <div class="panel-body">
+      <p style="font-size:13px;opacity:0.85;">
+        Beim Rebirth verlierst du deine <strong>Clicks</strong> &amp; <strong>Coins</strong>,
+        erhältst aber einen <strong>permanenten Multiplikator</strong> auf deine Clicks
+        und schaltest neue Welten frei.
+      </p>
+      <p class="panel-section-title">Aktueller Rebirth-Bonus</p>
+      <p style="font-size:13px;">
+        Rebirths: <span id="rb-count">0</span><br />
+        Rebirth-Multiplikator: <span id="rb-mult">x1.0</span><br />
+        Prestige-Multiplikator: <span id="rb-prestige-mult">x1.0</span><br />
+        Globaler Gesamt-Multiplikator:<br />
+        <span id="rb-total-mult">x1.0</span><br /><br />
+        Nächster Rebirth kostet: <span id="rb-cost">1 000</span> Clicks
+      </p>
+    </div>
+    <div class="panel-footer">
+      <button id="btn-do-rebirth" class="btn">Rebirth durchführen</button>
+    </div>
+  </div>
+
+  <div id="panel-prestige" class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Prestige</div>
+      <button class="panel-close" data-close="panel-prestige">×</button>
+    </div>
+    <div class="panel-body">
+      <p style="font-size:13px;opacity:0.85;">
+        Prestige setzt deine <strong>Rebirths, Clicks, Coins, Pets &amp; Upgrades</strong> zurück,
+        erhöht aber deinen <strong>globalen Prestige-Multiplikator</strong>.
+      </p>
+      <p class="panel-section-title">Prestige-Status</p>
+      <p style="font-size:13px;">
+        Prestige-Stufe: <span id="pr-count">0</span><br />
+        Prestige-Multiplikator: <span id="pr-mult">x1.0</span><br />
+        Benötigte Rebirths für nächsten Prestige:<br />
+        <span id="pr-req">5</span> Rebirths
+      </p>
+      <p style="font-size:12px;opacity:0.8;">
+        Prestige ist optional, aber wichtig für maximale Skalierung – ähnlich „Super Rebirth“.
+      </p>
+    </div>
+    <div class="panel-footer">
+      <button id="btn-do-prestige" class="btn">Prestige durchführen</button>
+    </div>
+  </div>
+
+  <div id="panel-worlds" class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Welten</div>
+      <button class="panel-close" data-close="panel-worlds">×</button>
+    </div>
+    <div class="panel-body">
+      <div class="panel-section-title">Verfügbare Welten</div>
+      <div id="world-list" class="world-list"></div>
+    </div>
+  </div>
+
+  <div id="panel-leaderboard" class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Leaderboard</div>
+      <button class="panel-close" data-close="panel-leaderboard">×</button>
+    </div>
+    <div class="panel-body">
+      <p style="font-size:12px;opacity:0.8;">
+        Dieses Leaderboard ist eine <strong>lokale Attrappe</strong> – dein Rang basiert auf Klicks,
+        Rebirths, Prestige und Coins in dieser Session.
+      </p>
+      <div class="panel-section-title">Top-Spieler (Fake Global)</div>
+      <div id="leaderboard-list" class="leaderboard-list"></div>
+
+      <div class="panel-section-title">Deine Stats</div>
+      <p style="font-size:12px;">
+        Beste Clicks (Run-Highscore): <span id="lb-best-clicks">0</span><br />
+        Aktuelle Rebirths: <span id="lb-rebirths">0</span><br />
+        Prestige-Stufe: <span id="lb-prestige">0</span><br />
+        Power-Score: <span id="lb-power">0</span>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // ==========================
+    // PERSISTENZ
+    // ==========================
+    const SAVE_KEY = "roblox_clicker_save_v1";
+
+    function safeLoad() {
+      try {
+        const raw = localStorage.getItem(SAVE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch (e) {
+        console.warn("Konnte Savegame nicht laden:", e);
+        return null;
+      }
+    }
+
+    function safeSave(data) {
+      try {
+        localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+      } catch (e) {
+        console.warn("Konnte Savegame nicht speichern:", e);
+      }
+    }
+
+    // ==========================
+    // GAME STATE
+    // ==========================
+    const gameState = {
+      clicks: 0,
+      coins: 0,
+      rebirths: 0,
+      prestige: 0,
+      baseClickPower: 1,
+      clickMultiplierFromPets: 0,
+      worldIndex: 0,
+      pets: [],
+      upgrades: {
+        clickPowerLevel: 0,
+        coinBoostLevel: 0,
+        autoClickLevel: 0
+      },
+      bestClicks: 0
+    };
+
+    let WORLDS;
+    let EGGS;
+    let UPGRADES;
+
+    function initData() {
+      WORLDS = [
+        {
+          id: 0,
+          name: "Grassland",
+          requiredRebirths: 0,
+          color: new BABYLON.Color3(0.58, 0.84, 0.54),
+          skyColor: new BABYLON.Color3(0.4, 0.7, 1.0),
+          worldClickMultiplier: 1
+        },
+        {
+          id: 1,
+          name: "Desert",
+          requiredRebirths: 2,
+          color: new BABYLON.Color3(0.96, 0.82, 0.53),
+          skyColor: new BABYLON.Color3(0.95, 0.8, 0.55),
+          worldClickMultiplier: 1.4
+        },
+        {
+          id: 2,
+          name: "Neon City",
+          requiredRebirths: 5,
+          color: new BABYLON.Color3(0.09, 0.1, 0.2),
+          skyColor: new BABYLON.Color3(0.02, 0.02, 0.08),
+          worldClickMultiplier: 2.2
+        },
+        {
+          id: 3,
+          name: "Crystal Peaks",
+          requiredRebirths: 10,
+          color: new BABYLON.Color3(0.85, 0.93, 1.0),
+          skyColor: new BABYLON.Color3(0.6, 0.8, 1.0),
+          worldClickMultiplier: 3.4
+        },
+        {
+          id: 4,
+          name: "Void Realm",
+          requiredRebirths: 20,
+          color: new BABYLON.Color3(0.02, 0.01, 0.09),
+          skyColor: new BABYLON.Color3(0.0, 0.0, 0.0),
+          worldClickMultiplier: 5.5
+        }
+      ];
+
+      EGGS = [
+        {
+          id: "basic",
+          name: "Basic Egg",
+          worldId: 0,
+          cost: 100,
+          pets: [
+            { name: "Grass Slime", rarity: "common", clickBonus: 0.15 },
+            { name: "Tiny Golem", rarity: "rare", clickBonus: 0.35 },
+            { name: "Crystal Wolf", rarity: "epic", clickBonus: 0.7 },
+            { name: "Ancient Dragonling", rarity: "legendary", clickBonus: 1.2 }
+          ],
+          chances: [0.6, 0.25, 0.1, 0.05]
+        },
+        {
+          id: "forest",
+          name: "Forest Egg",
+          worldId: 0,
+          cost: 500,
+          pets: [
+            { name: "Sprite", rarity: "rare", clickBonus: 0.6 },
+            { name: "Tree Guardian", rarity: "epic", clickBonus: 1.2 },
+            { name: "Starlit Elk", rarity: "legendary", clickBonus: 2.5 }
+          ],
+          chances: [0.55, 0.3, 0.15]
+        },
+        {
+          id: "sand",
+          name: "Sand Egg",
+          worldId: 1,
+          cost: 1000,
+          pets: [
+            { name: "Sand Spirit", rarity: "common", clickBonus: 0.4 },
+            { name: "Scarab Guardian", rarity: "rare", clickBonus: 0.8 },
+            { name: "Dune Wyrm", rarity: "epic", clickBonus: 1.6 },
+            { name: "Solar Phoenix", rarity: "legendary", clickBonus: 3.0 }
+          ],
+          chances: [0.55, 0.25, 0.15, 0.05]
+        },
+        {
+          id: "pyramid",
+          name: "Pyramid Egg",
+          worldId: 1,
+          cost: 4000,
+          pets: [
+            { name: "Anubis Cub", rarity: "rare", clickBonus: 1.1 },
+            { name: "Golden Jackal", rarity: "epic", clickBonus: 2.3 },
+            { name: "Sun God Avatar", rarity: "legendary", clickBonus: 4.8 }
+          ],
+          chances: [0.6, 0.28, 0.12]
+        },
+        {
+          id: "neon",
+          name: "Neon Egg",
+          worldId: 2,
+          cost: 10000,
+          pets: [
+            { name: "Neon Cat", rarity: "common", clickBonus: 1.5 },
+            { name: "Cyber Fox", rarity: "rare", clickBonus: 3.0 },
+            { name: "Glitch Spirit", rarity: "epic", clickBonus: 6.0 },
+            { name: "Hologram Dragon", rarity: "legendary", clickBonus: 12.0 }
+          ],
+          chances: [0.5, 0.25, 0.2, 0.05]
+        },
+        {
+          id: "cyber",
+          name: "Cyber Egg",
+          worldId: 2,
+          cost: 50000,
+          pets: [
+            { name: "Data Wisp", rarity: "rare", clickBonus: 4.0 },
+            { name: "Firewall Hound", rarity: "epic", clickBonus: 9.0 },
+            { name: "Quantum Dragon", rarity: "legendary", clickBonus: 20.0 }
+          ],
+          chances: [0.55, 0.3, 0.15]
+        },
+        {
+          id: "crystal",
+          name: "Crystal Egg",
+          worldId: 3,
+          cost: 150000,
+          pets: [
+            { name: "Shard Spirit", rarity: "rare", clickBonus: 6.0 },
+            { name: "Prism Griffin", rarity: "epic", clickBonus: 15.0 },
+            { name: "Aurora Dragon", rarity: "legendary", clickBonus: 35.0 }
+          ],
+          chances: [0.5, 0.3, 0.2]
+        },
+        {
+          id: "void",
+          name: "Void Egg",
+          worldId: 4,
+          cost: 500000,
+          pets: [
+            { name: "Voidling", rarity: "rare", clickBonus: 12.0 },
+            { name: "Eclipse Serpent", rarity: "epic", clickBonus: 28.0 },
+            { name: "Omega Entity", rarity: "legendary", clickBonus: 70.0 }
+          ],
+          chances: [0.55, 0.3, 0.15]
+        }
+      ];
+
+      UPGRADES = [
+        {
+          id: "clickPower",
+          name: "Click-Stärke",
+          baseCost: 50,
+          costGrowth: 1.6,
+          perLevelBonus: 0.5,
+          description: "Erhöht dauerhaft deine Basis-Click-Stärke."
+        },
+        {
+          id: "coinBoost",
+          name: "Coin-Boost",
+          baseCost: 200,
+          costGrowth: 1.9,
+          perLevelBonus: 0.25,
+          description: "Erhöht die Coins, die du pro Click erhältst."
+        },
+        {
+          id: "autoClick",
+          name: "Auto-Clicker",
+          baseCost: 1000,
+          costGrowth: 2.1,
+          perLevelBonus: 0.4,
+          description: "Fügt automatischen Click pro Sekunde hinzu (skaliert mit deinem Multiplikator)."
+        }
+      ];
+    }
+
+    function getRebirthCost(rebirths) {
+      return Math.floor(1000 * Math.pow(4, rebirths));
+    }
+
+    function getRebirthMultiplier(rebirths) {
+      return 1 + rebirths * 0.75;
+    }
+
+    function getPrestigeMultiplier(prestige) {
+      return 1 + prestige * 1.5;
+    }
+
+    function getPrestigeRequiredRebirths(prestige) {
+      return 5 + prestige * 5;
+    }
+
+    function currentWorld() {
+      return WORLDS[gameState.worldIndex];
+    }
+
+    function recalcPetBonus() {
+      let bonus = 0;
+      for (const pet of gameState.pets) {
+        bonus += pet.clickBonus;
+      }
+      gameState.clickMultiplierFromPets = bonus;
+    }
+
+    function getClickPower() {
+      const clickUpgradeLevel = gameState.upgrades.clickPowerLevel || 0;
+      const upgradeBonus = clickUpgradeLevel * (UPGRADES?.[0]?.perLevelBonus || 0.5);
+      const base = gameState.baseClickPower + upgradeBonus;
+      const petMult = 1 + gameState.clickMultiplierFromPets;
+      const rebirthMult = getRebirthMultiplier(gameState.rebirths);
+      const worldMult = currentWorld().worldClickMultiplier;
+      const prestigeMult = getPrestigeMultiplier(gameState.prestige);
+      return base * petMult * rebirthMult * worldMult * prestigeMult;
+    }
+
+    function getCoinGainFromClick() {
+      const coinUpgradeLevel = gameState.upgrades.coinBoostLevel || 0;
+      const coinMult = 1 + coinUpgradeLevel * (UPGRADES?.[1]?.perLevelBonus || 0.25);
+      return getClickPower() * coinMult * 0.5;
+    }
+
+    function getAutoClickPerSecond() {
+      const autoLevel = gameState.upgrades.autoClickLevel || 0;
+      if (autoLevel <= 0) return 0;
+      const baseAuto = autoLevel * (UPGRADES?.[2]?.perLevelBonus || 0.4);
+      return baseAuto * getClickPower();
+    }
+
+    function getPlayerPowerScore() {
+      return (
+        gameState.clicks +
+        gameState.bestClicks * 2 +
+        gameState.coins * 0.5 +
+        gameState.rebirths * 100000 +
+        gameState.prestige * 1_000_000
+      );
+    }
+
+    function applyLoadedData(data) {
+      if (!data) return;
+      gameState.clicks = data.clicks ?? 0;
+      gameState.coins = data.coins ?? 0;
+      gameState.rebirths = data.rebirths ?? 0;
+      gameState.prestige = data.prestige ?? 0;
+      gameState.worldIndex = data.worldIndex ?? 0;
+      gameState.baseClickPower = data.baseClickPower ?? 1;
+      gameState.pets = data.pets ?? [];
+      gameState.upgrades = data.upgrades ?? { clickPowerLevel: 0, coinBoostLevel: 0, autoClickLevel: 0 };
+      gameState.bestClicks = data.bestClicks ?? 0;
+      recalcPetBonus();
+    }
+
+    function saveGame() {
+      const data = {
+        clicks: gameState.clicks,
+        coins: gameState.coins,
+        rebirths: gameState.rebirths,
+        prestige: gameState.prestige,
+        worldIndex: gameState.worldIndex,
+        baseClickPower: gameState.baseClickPower,
+        pets: gameState.pets,
+        upgrades: gameState.upgrades,
+        bestClicks: gameState.bestClicks
+      };
+      safeSave(data);
+    }
+
+    // ==========================
+    // UI HOOKS & HELPERS
+    // ==========================
+    const hudClicks = document.getElementById("hud-clicks");
+    const hudCoins = document.getElementById("hud-coins");
+    const hudRebirths = document.getElementById("hud-rebirths");
+    const hudPrestige = document.getElementById("hud-prestige");
+    const hudWorld = document.getElementById("hud-world");
+    const hudClickPower = document.getElementById("hud-click-power");
+
+    const btnClick = document.getElementById("btn-click");
+    const btnEggs = document.getElementById("btn-eggs");
+    const btnUpgrades = document.getElementById("btn-upgrades");
+    const btnRebirth = document.getElementById("btn-rebirth");
+    const btnPrestige = document.getElementById("btn-prestige");
+    const btnWorlds = document.getElementById("btn-worlds");
+    const btnLeaderboard = document.getElementById("btn-leaderboard");
+
+    const joyUp = document.getElementById("joy-up");
+    const joyDown = document.getElementById("joy-down");
+    const joyLeft = document.getElementById("joy-left");
+    const joyRight = document.getElementById("joy-right");
+
+    const panelEggs = document.getElementById("panel-eggs");
+    const panelUpgrades = document.getElementById("panel-upgrades");
+    const panelRebirth = document.getElementById("panel-rebirth");
+    const panelPrestige = document.getElementById("panel-prestige");
+    const panelWorlds = document.getElementById("panel-worlds");
+    const panelLeaderboard = document.getElementById("panel-leaderboard");
+
+    const eggList = document.getElementById("egg-list");
+    const petList = document.getElementById("pet-list");
+    const upgradeList = document.getElementById("upgrade-list");
+    const worldList = document.getElementById("world-list");
+    const leaderboardList = document.getElementById("leaderboard-list");
+
+    const rbCount = document.getElementById("rb-count");
+    const rbMult = document.getElementById("rb-mult");
+    const rbPrestigeMult = document.getElementById("rb-prestige-mult");
+    const rbTotalMult = document.getElementById("rb-total-mult");
+    const rbCost = document.getElementById("rb-cost");
+    const btnDoRebirth = document.getElementById("btn-do-rebirth");
+
+    const prCount = document.getElementById("pr-count");
+    const prMult = document.getElementById("pr-mult");
+    const prReq = document.getElementById("pr-req");
+    const btnDoPrestige = document.getElementById("btn-do-prestige");
+
+    const lbBestClicks = document.getElementById("lb-best-clicks");
+    const lbRebirths = document.getElementById("lb-rebirths");
+    const lbPrestige = document.getElementById("lb-prestige");
+    const lbPower = document.getElementById("lb-power");
+
+    function formatNumber(n) {
+      if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(2) + "B";
+      if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + "M";
+      if (n >= 1_000) return (n / 1_000).toFixed(2) + "K";
+      return Math.floor(n).toString();
+    }
+
+    function updateHUD() {
+      hudClicks.textContent = formatNumber(gameState.clicks);
+      hudCoins.textContent = formatNumber(gameState.coins);
+      hudRebirths.textContent = gameState.rebirths.toString();
+      hudPrestige.textContent = gameState.prestige.toString();
+      hudWorld.textContent = currentWorld().name;
+      hudClickPower.textContent = getClickPower().toFixed(1);
+
+      const rebCost = getRebirthCost(gameState.rebirths);
+      rbCount.textContent = gameState.rebirths.toString();
+      const rMult = getRebirthMultiplier(gameState.rebirths);
+      const pMult = getPrestigeMultiplier(gameState.prestige);
+      rbMult.textContent = "x" + rMult.toFixed(2);
+      rbPrestigeMult.textContent = "x" + pMult.toFixed(2);
+      rbTotalMult.textContent = "x" + (rMult * pMult).toFixed(2);
+      rbCost.textContent = formatNumber(rebCost);
+
+      if (gameState.clicks >= rebCost) {
+        btnRebirth.disabled = false;
+        btnRebirth.style.opacity = "1";
+      } else {
+        btnRebirth.disabled = true;
+        btnRebirth.style.opacity = "0.7";
+      }
+
+      const reqRebirths = getPrestigeRequiredRebirths(gameState.prestige);
+      prCount.textContent = gameState.prestige.toString();
+      prMult.textContent = "x" + pMult.toFixed(2);
+      prReq.textContent = reqRebirths.toString();
+    }
+
+    function closeAllPanels() {
+      [panelEggs, panelUpgrades, panelRebirth, panelPrestige, panelWorlds, panelLeaderboard]
+        .forEach(p => p.style.display = "none");
+    }
+
+    document.querySelectorAll(".panel-close").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-close");
+        if (id) {
+          document.getElementById(id).style.display = "none";
+        }
+      });
+    });
+
+    function bindButtonPointer(btn, handler) {
+      btn.addEventListener("pointerdown", (ev) => {
+        ev.preventDefault();
+        handler();
+      });
+    }
+
+    function buildEggPanel() {
+      eggList.innerHTML = "";
+      const currentWorldId = currentWorld().id;
+
+      EGGS.filter(e => e.worldId <= currentWorldId).forEach(egg => {
+        const div = document.createElement("div");
+        div.className = "egg-item";
+
+        const main = document.createElement("div");
+        main.className = "egg-main";
+
+        const n = document.createElement("div");
+        n.className = "egg-name";
+        n.textContent = egg.name;
+
+        const m = document.createElement("div");
+        m.className = "egg-meta";
+        m.innerHTML =
+          `Kosten: <strong>${formatNumber(egg.cost)}</strong> Coins<br>` +
+          `<span class="label-soft">Welt:</span> ${WORLDS.find(w => w.id === egg.worldId).name}`;
+
+        main.appendChild(n);
+        main.appendChild(m);
+
+        const btn = document.createElement("button");
+        btn.className = "btn";
+        btn.style.padding = "6px 10px";
+        btn.style.fontSize = "12px";
+        btn.textContent = "Öffnen";
+
+        bindButtonPointer(btn, () => {
+          if (gameState.coins < egg.cost) {
+            alert("Nicht genug Coins!");
+            return;
+          }
+          gameState.coins -= egg.cost;
+          const pet = rollPetFromEgg(egg);
+          gameState.pets.push(pet);
+          recalcPetBonus();
+          updateHUD();
+          buildPetList();
+          saveGame();
+          if (sfx.egg) sfx.egg.play();
+          alert(`Du hast ein Pet gezogen: ${pet.name} (${pet.rarity})`);
+        });
+
+        div.appendChild(main);
+        div.appendChild(btn);
+        eggList.appendChild(div);
+      });
+    }
+
+    function rollPetFromEgg(egg) {
+      const r = Math.random();
+      let sum = 0;
+      for (let i = 0; i < egg.pets.length; i++) {
+        sum += egg.chances[i];
+        if (r <= sum) {
+          return egg.pets[i];
+        }
+      }
+      return egg.pets[egg.pets.length - 1];
+    }
+
+    function buildPetList() {
+      petList.innerHTML = "";
+      if (gameState.pets.length === 0) {
+        const p = document.createElement("p");
+        p.style.fontSize = "12px";
+        p.style.opacity = "0.8";
+        p.textContent = "Du hast noch keine Pets. Öffne ein Ei!";
+        petList.appendChild(p);
+        return;
+      }
+      gameState.pets.forEach(pet => {
+        const div = document.createElement("div");
+        div.className = "pet-item";
+
+        const main = document.createElement("div");
+        main.className = "pet-main";
+
+        const n = document.createElement("div");
+        n.className = "pet-name";
+        n.textContent = pet.name;
+
+        const m = document.createElement("div");
+        m.className = "pet-meta";
+        m.innerHTML =
+          `<span class="label-soft">${pet.rarity.toUpperCase()}</span> ` +
+          `&middot; +${(pet.clickBonus * 100).toFixed(0)}% Click-Multiplikator`;
+
+        main.appendChild(n);
+        main.appendChild(m);
+
+        const badge = document.createElement("span");
+        badge.className = "badge";
+        if (pet.rarity === "rare") badge.classList.add("badge-rare");
+        if (pet.rarity === "epic") badge.classList.add("badge-epic");
+        if (pet.rarity === "legendary") badge.classList.add("badge-legendary");
+        badge.textContent = pet.rarity.toUpperCase();
+
+        div.appendChild(main);
+        div.appendChild(badge);
+        petList.appendChild(div);
+      });
+    }
+
+    function buildUpgradePanel() {
+      upgradeList.innerHTML = "";
+      UPGRADES.forEach(up => {
+        const div = document.createElement("div");
+        div.className = "upgrade-item";
+
+        const main = document.createElement("div");
+        main.className = "upgrade-main";
+
+        const n = document.createElement("div");
+        n.className = "upgrade-name";
+        n.textContent = up.name;
+
+        const levelKey = up.id + "Level";
+        const level = gameState.upgrades[levelKey] || 0;
+        const cost = Math.floor(up.baseCost * Math.pow(up.costGrowth, level));
+
+        const m = document.createElement("div");
+        m.className = "upgrade-meta";
+        m.innerHTML =
+          `${up.description}<br>` +
+          `<span class="label-soft">Level:</span> ${level} &middot; ` +
+          `<span class="label-soft">Kosten:</span> ${formatNumber(cost)} Coins`;
+
+        main.appendChild(n);
+        main.appendChild(m);
+
+        const btn = document.createElement("button");
+        btn.className = "btn";
+        btn.style.padding = "6px 10px";
+        btn.style.fontSize = "12px";
+        btn.textContent = "Upgrade";
+
+        bindButtonPointer(btn, () => {
+          if (gameState.coins < cost) {
+            alert("Nicht genug Coins!");
+            return;
+          }
+          gameState.coins -= cost;
+          gameState.upgrades[levelKey] = level + 1;
+          recalcPetBonus();
+          updateHUD();
+          buildUpgradePanel();
+          saveGame();
+          if (sfx.upgrade) sfx.upgrade.play();
+        });
+
+        div.appendChild(main);
+        div.appendChild(btn);
+        upgradeList.appendChild(div);
+      });
+    }
+
+    function buildWorldPanel() {
+      worldList.innerHTML = "";
+      WORLDS.forEach(w => {
+        const div = document.createElement("div");
+        div.className = "world-item";
+
+        const main = document.createElement("div");
+        main.className = "world-main";
+
+        const n = document.createElement("div");
+        n.className = "world-name";
+        n.textContent = w.name;
+
+        const m = document.createElement("div");
+        m.className = "world-meta";
+        m.innerHTML =
+          `<span class="label-soft">Rebirths nötig:</span> ${w.requiredRebirths}<br>` +
+          `<span class="label-soft">Click-Multiplikator:</span> x${w.worldClickMultiplier.toFixed(2)}`;
+
+        main.appendChild(n);
+        main.appendChild(m);
+
+        const btn = document.createElement("button");
+        btn.className = "btn";
+        btn.style.padding = "6px 10px";
+        btn.style.fontSize = "12px";
+
+        const unlocked = gameState.rebirths >= w.requiredRebirths;
+        if (!unlocked) {
+          btn.textContent = "Gesperrt";
+          btn.disabled = true;
+          btn.style.opacity = "0.5";
+        } else {
+          btn.textContent = (gameState.worldIndex === w.id) ? "Aktiv" : "Reisen";
+        }
+
+        bindButtonPointer(btn, () => {
+          if (!unlocked) return;
+          if (gameState.worldIndex !== w.id) {
+            gameState.worldIndex = w.id;
+            switchWorldVisual(w, true);
+            updateHUD();
+            buildWorldPanel();
+            saveGame();
+          }
+        });
+
+        div.appendChild(main);
+        div.appendChild(btn);
+        worldList.appendChild(div);
+      });
+    }
+
+    function doRebirth() {
+      const cost = getRebirthCost(gameState.rebirths);
+      if (gameState.clicks < cost) {
+        alert("Du hast noch nicht genug Clicks für einen Rebirth.");
+        return;
+      }
+      if (!confirm("Bist du sicher? Deine Clicks und Coins werden zurückgesetzt.")) {
+        return;
+      }
+      if (gameState.clicks > gameState.bestClicks) {
+        gameState.bestClicks = gameState.clicks;
+      }
+      gameState.clicks = 0;
+      gameState.coins = 0;
+      gameState.rebirths += 1;
+      updateHUD();
+      buildWorldPanel();
+      buildLeaderboardPanel();
+      saveGame();
+      if (sfx.rebirth) sfx.rebirth.play();
+    }
+
+    function doPrestige() {
+      const reqRebirths = getPrestigeRequiredRebirths(gameState.prestige);
+      if (gameState.rebirths < reqRebirths) {
+        alert("Du brauchst mehr Rebirths für Prestige!");
+        return;
+      }
+      if (!confirm("Prestige setzt fast alles zurück – wirklich fortfahren?")) {
+        return;
+      }
+      if (gameState.clicks > gameState.bestClicks) {
+        gameState.bestClicks = gameState.clicks;
+      }
+      gameState.clicks = 0;
+      gameState.coins = 0;
+      gameState.rebirths = 0;
+      gameState.pets = [];
+      gameState.upgrades = {
+        clickPowerLevel: 0,
+        coinBoostLevel: 0,
+        autoClickLevel: 0
+      };
+      gameState.worldIndex = 0;
+      recalcPetBonus();
+      gameState.prestige += 1;
+      switchWorldVisual(currentWorld(), true);
+      updateHUD();
+      buildWorldPanel();
+      buildEggPanel();
+      buildPetList();
+      buildUpgradePanel();
+      buildLeaderboardPanel();
+      saveGame();
+      if (sfx.prestige) sfx.prestige.play();
+    }
+
+    function buildLeaderboardPanel() {
+      leaderboardList.innerHTML = "";
+
+      const baseBoard = [
+        { name: "NovaPlayer", score: 9_000_000_000 },
+        { name: "QuantumNoob", score: 3_500_000_000 },
+        { name: "ClickMasterX", score: 1_200_000_000 },
+        { name: "RebirthKing", score: 600_000_000 },
+        { name: "AFKLegend", score: 300_000_000 }
+      ];
+
+      const playerScore = Math.max(getPlayerPowerScore(), 1);
+      const board = baseBoard.concat([{ name: "Du", score: playerScore }]);
+
+      board.sort((a, b) => b.score - a.score);
+
+      board.forEach((entry, i) => {
+        const div = document.createElement("div");
+        div.className = "leaderboard-item";
+
+        const main = document.createElement("div");
+        main.className = "leaderboard-main";
+
+        const n = document.createElement("div");
+        n.className = "leaderboard-name";
+        n.textContent = `#${i + 1} ${entry.name}`;
+
+        const m = document.createElement("div");
+        m.className = "leaderboard-meta";
+        m.textContent = `Power-Score: ${formatNumber(entry.score)}`;
+
+        main.appendChild(n);
+        main.appendChild(m);
+
+        const badge = document.createElement("span");
+        badge.className = "badge";
+        if (entry.name === "Du") {
+          badge.classList.add("badge-you");
+          badge.textContent = "YOU";
+        } else if (i === 0) {
+          badge.classList.add("badge-legendary");
+          badge.textContent = "TOP 1";
+        } else if (i <= 2) {
+          badge.classList.add("badge-epic");
+          badge.textContent = "TOP 3";
+        } else {
+          badge.classList.add("badge-rare");
+          badge.textContent = "GLOBAL";
+        }
+
+        div.appendChild(main);
+        div.appendChild(badge);
+        leaderboardList.appendChild(div);
+      });
+
+      lbBestClicks.textContent = formatNumber(gameState.bestClicks);
+      lbRebirths.textContent = gameState.rebirths.toString();
+      lbPrestige.textContent = gameState.prestige.toString();
+      lbPower.textContent = formatNumber(playerScore);
+    }
+
+    // ==========================
+    // 3D SCENE + PLAYER
+    // ==========================
+    let engine, scene, camera;
+    let clickCrystalMesh;
+    let worldGrounds = {};
+    let playerRoot;
+    let inputMap = {};
+    let movementTouch = { up: false, down: false, left: false, right: false };
+    let lastFrameTime = performance.now();
+
+    const sfx = {
+      click: null,
+      egg: null,
+      upgrade: null,
+      rebirth: null,
+      prestige: null,
+      bgm: null
+    };
+
+    function createPlayer(scene) {
+      playerRoot = new BABYLON.TransformNode("playerRoot", scene);
+
+      const body = BABYLON.MeshBuilder.CreateBox("playerBody", {
+        width: 1,
+        depth: 0.7,
+        height: 1.8
+      }, scene);
+      body.position.y = 0.9;
+      body.parent = playerRoot;
+
+      const head = BABYLON.MeshBuilder.CreateSphere("playerHead", {
+        diameter: 0.9
+      }, scene);
+      head.position.y = 2.2;
+      head.parent = playerRoot;
+
+      const matBody = new BABYLON.StandardMaterial("playerBodyMat", scene);
+      matBody.diffuseColor = new BABYLON.Color3(0.2, 0.4, 0.9);
+      matBody.emissiveColor = new BABYLON.Color3(0.2, 0.4, 1.0).scale(0.3);
+      body.material = matBody;
+
+      const matHead = new BABYLON.StandardMaterial("playerHeadMat", scene);
+      matHead.diffuseColor = new BABYLON.Color3(0.9, 0.85, 0.7);
+      head.material = matHead;
+
+      playerRoot.position = new BABYLON.Vector3(worldGrounds[0].position.x, 1, -5);
+    }
+
+    function createScene(engineInstance, canvas) {
+      initData();
+
+      const scene = new BABYLON.Scene(engineInstance);
+      scene.clearColor = new BABYLON.Color3(0.02, 0.02, 0.08);
+
+      const hdrTexture = new BABYLON.CubeTexture.CreateFromPrefilteredData(
+        "https://playground.babylonjs.com/textures/environment.env",
+        scene
+      );
+      scene.environmentTexture = hdrTexture;
+      scene.createDefaultSkybox(hdrTexture, true, 1000);
+
+      camera = new BABYLON.ArcRotateCamera(
+        "camera",
+        -Math.PI / 2.5,
+        Math.PI / 3,
+        25,
+        new BABYLON.Vector3(0, 3, 0),
+        scene
+      );
+      camera.lowerBetaLimit = 0.5;
+      camera.upperBetaLimit = 1.3;
+      camera.lowerRadiusLimit = 10;
+      camera.upperRadiusLimit = 50;
+      camera.attachControl(canvas, true);
+      camera.wheelDeltaPercentage = 0.02;
+      camera.panningSensibility = 0;
+
+      const mainLight = new BABYLON.DirectionalLight(
+        "mainLight",
+        new BABYLON.Vector3(-0.5, -1, -0.5),
+        scene
+      );
+      mainLight.position = new BABYLON.Vector3(30, 40, 20);
+      mainLight.intensity = 2.0;
+
+      const fillLight = new BABYLON.HemisphericLight(
+        "fillLight",
+        new BABYLON.Vector3(0, 1, 0),
+        scene
+      );
+      fillLight.intensity = 0.6;
+
+      const shadowGenerator = new BABYLON.ShadowGenerator(2048, mainLight);
+      shadowGenerator.useBlurExponentialShadowMap = true;
+      shadowGenerator.blurKernel = 32;
+
+      const pipeline = new BABYLON.DefaultRenderingPipeline(
+        "defaultPipeline",
+        true,
+        scene,
+        [camera]
+      );
+      pipeline.bloomEnabled = true;
+      pipeline.bloomThreshold = 0.6;
+      pipeline.bloomWeight = 0.7;
+      pipeline.bloomKernel = 64;
+      pipeline.bloomScale = 0.5;
+
+      const glow = new BABYLON.GlowLayer("glow", scene, {
+        mainTextureFixedSize: 1024,
+        blurKernelSize: 32
+      });
+      glow.intensity = 0.9;
+
+      WORLDS.forEach((w, idx) => {
+        const xOffset = (idx - (WORLDS.length - 1) / 2) * 50;
+
+        const ground = BABYLON.MeshBuilder.CreateCylinder(
+          "ground_" + w.id,
+          { diameter: 30, height: 1 },
+          scene
+        );
+        ground.position = new BABYLON.Vector3(xOffset, 0, 0);
+
+        const gmat = new BABYLON.StandardMaterial("groundMat_" + w.id, scene);
+        gmat.diffuseColor = w.color.scale(1.0);
+        gmat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+        gmat.emissiveColor = (w.id >= 2)
+          ? new BABYLON.Color3(0.15, 0.15, 0.3)
+          : BABYLON.Color3.Black();
+        ground.material = gmat;
+        ground.receiveShadows = true;
+        worldGrounds[w.id] = ground;
+
+        for (let i = 0; i < 10; i++) {
+          const angle = (i / 10) * Math.PI * 2;
+          const radius = 10 + Math.random() * 4;
+          const height = 4 + Math.random() * 5;
+          const pillar = BABYLON.MeshBuilder.CreateBox(
+            "pillar_" + w.id + "_" + i,
+            { width: 1 + Math.random() * 0.3, depth: 1 + Math.random() * 0.3, height },
+            scene
+          );
+          pillar.position = new BABYLON.Vector3(
+            ground.position.x + Math.cos(angle) * radius,
+            height / 2 + 0.5,
+            Math.sin(angle) * radius
+          );
+
+          const pm = new BABYLON.StandardMaterial("pillarMat_" + w.id + "_" + i, scene);
+          if (w.id === 0) {
+            pm.diffuseColor = new BABYLON.Color3(0.7, 0.8, 0.7);
+          } else if (w.id === 1) {
+            pm.diffuseColor = new BABYLON.Color3(0.93, 0.78, 0.56);
+          } else if (w.id === 2) {
+            pm.diffuseColor = new BABYLON.Color3(0.2, 0.3, 0.9);
+            pm.emissiveColor = new BABYLON.Color3(
+              0.4 + Math.random() * 0.3,
+              0.1,
+              0.9
+            ).scale(0.7);
+          } else if (w.id === 3) {
+            pm.diffuseColor = new BABYLON.Color3(0.8, 0.9, 1.0);
+            pm.emissiveColor = new BABYLON.Color3(0.6, 0.8, 1.0).scale(0.4);
+          } else {
+            pm.diffuseColor = new BABYLON.Color3(0.1, 0.05, 0.25);
+            pm.emissiveColor = new BABYLON.Color3(0.8, 0.0, 1.0).scale(0.5);
+          }
+          pm.specularPower = 64;
+          pillar.material = pm;
+          shadowGenerator.addShadowCaster(pillar);
+        }
+      });
+
+      WORLDS.forEach(w => {
+        const crystal = BABYLON.MeshBuilder.CreatePolyhedron(
+          "crystal_" + w.id,
+          { type: 1, size: 2 },
+          scene
+        );
+        crystal.position = new BABYLON.Vector3(worldGrounds[w.id].position.x, 3, 0);
+        crystal.rotation.y = Math.random() * Math.PI * 2;
+
+        const cmat = new BABYLON.StandardMaterial("crystalMat_" + w.id, scene);
+        if (w.id === 0) {
+          cmat.diffuseColor = new BABYLON.Color3(0.5, 0.9, 1.0);
+          cmat.emissiveColor = new BABYLON.Color3(0.3, 0.9, 1.0);
+        } else if (w.id === 1) {
+          cmat.diffuseColor = new BABYLON.Color3(1.0, 0.6, 0.3);
+          cmat.emissiveColor = new BABYLON.Color3(1.0, 0.4, 0.1);
+        } else if (w.id === 2) {
+          cmat.diffuseColor = new BABYLON.Color3(0.6, 0.2, 1.0);
+          cmat.emissiveColor = new BABYLON.Color3(0.9, 0.2, 1.0);
+        } else if (w.id === 3) {
+          cmat.diffuseColor = new BABYLON.Color3(0.7, 0.9, 1.0);
+          cmat.emissiveColor = new BABYLON.Color3(0.5, 0.8, 1.0);
+        } else {
+          cmat.diffuseColor = new BABYLON.Color3(0.9, 0.1, 1.0);
+          cmat.emissiveColor = new BABYLON.Color3(1.0, 0.0, 0.8);
+        }
+        cmat.specularPower = 128;
+        crystal.material = cmat;
+
+        shadowGenerator.addShadowCaster(crystal);
+
+        if (w.id === 0) {
+          clickCrystalMesh = crystal;
+        }
+      });
+
+      for (let i = 0; i < 60; i++) {
+        const s = BABYLON.MeshBuilder.CreateSphere("particle_" + i, { diameter: 0.2 }, scene);
+        s.position = new BABYLON.Vector3(
+          (Math.random() - 0.5) * 80,
+          5 + Math.random() * 10,
+          (Math.random() - 0.5) * 80
+        );
+        const sm = new BABYLON.StandardMaterial("particleMat_" + i, scene);
+        sm.emissiveColor = new BABYLON.Color3(
+          0.4 + Math.random() * 0.6,
+          0.4 + Math.random() * 0.6,
+          1.0
+        ).scale(0.4);
+        sm.disableLighting = true;
+        s.material = sm;
+      }
+
+      createPlayer(scene);
+
+      // AUDIO (simple placeholder URLs)
+      sfx.click = new BABYLON.Sound("click", "https://cdn.jsdelivr.net/gh/jshawl/hackersound@master/sounds/click1.wav", scene, null, { volume: 0.3 });
+      sfx.egg = new BABYLON.Sound("egg", "https://cdn.jsdelivr.net/gh/jshawl/hackersound@master/sounds/pickupCoin.wav", scene, null, { volume: 0.4 });
+      sfx.upgrade = new BABYLON.Sound("upg", "https://cdn.jsdelivr.net/gh/jshawl/hackersound@master/sounds/powerUp.wav", scene, null, { volume: 0.4 });
+      sfx.rebirth = new BABYLON.Sound("rebirth", "https://cdn.jsdelivr.net/gh/jshawl/hackersound@master/sounds/warp.wav", scene, null, { volume: 0.4 });
+      sfx.prestige = new BABYLON.Sound("prestige", "https://cdn.jsdelivr.net/gh/jshawl/hackersound@master/sounds/spaceTrash.wav", scene, null, { volume: 0.4 });
+      sfx.bgm = new BABYLON.Sound("bgm", "https://cdn.jsdelivr.net/gh/jshawl/hackersound@master/sounds/spaceAmbience.wav", scene, null, {
+        volume: 0.25,
+        loop: true,
+        autoplay: true
+      });
+
+      scene.onBeforeRenderObservable.add(() => {
+        const now = performance.now();
+        const dt = (now - lastFrameTime) / 1000;
+        lastFrameTime = now;
+        updatePlayerMovement(dt);
+
+        const t = now * 0.001;
+        WORLDS.forEach(w => {
+          const mesh = scene.getMeshByName("crystal_" + w.id);
+          if (mesh) {
+            mesh.rotation.y += 0.01;
+            mesh.position.y = 3 + Math.sin(t + w.id) * 0.3;
+          }
+        });
+
+        if (playerRoot) {
+          const targetPos = playerRoot.position.add(new BABYLON.Vector3(0, 2, 0));
+          camera.target = BABYLON.Vector3.Lerp(camera.target, targetPos, 0.1);
+        }
+      });
+
+      scene.onPointerObservable.add((pointerInfo) => {
+        if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN) {
+          const pickResult = pointerInfo.pickInfo;
+          if (pickResult && pickResult.hit && pickResult.pickedMesh) {
+            if (pickResult.pickedMesh.name.startsWith("crystal_")) {
+              performClick(true);
+            }
+          }
+        }
+      });
+
+      switchWorldVisual(currentWorld(), false);
+
+      window.addEventListener("keydown", (ev) => {
+        inputMap[ev.key.toLowerCase()] = true;
+      });
+      window.addEventListener("keyup", (ev) => {
+        inputMap[ev.key.toLowerCase()] = false;
+      });
+
+      return scene;
+    }
+
+    function switchWorldVisual(world, resetPlayer) {
+      if (!scene) return;
+      scene.clearColor = world.skyColor.scale(0.25);
+      if (playerRoot && worldGrounds[world.id]) {
+        if (resetPlayer) {
+          playerRoot.position = new BABYLON.Vector3(worldGrounds[world.id].position.x, 1, -5);
+        }
+      }
+      if (worldGrounds[world.id]) {
+        camera.target = new BABYLON.Vector3(worldGrounds[world.id].position.x, 3, 0);
+        camera.alpha = -Math.PI / 2.5;
+        camera.beta = Math.PI / 3;
+      }
+    }
+
+    function updatePlayerMovement(dt) {
+      if (!playerRoot) return;
+      const speed = 10;
+      let move = new BABYLON.Vector3(0, 0, 0);
+
+      const forward = camera.getDirection(new BABYLON.Vector3(0, 0, 1));
+      const right = camera.getDirection(new BABYLON.Vector3(1, 0, 0));
+      forward.y = 0; right.y = 0;
+      forward.normalize(); right.normalize();
+
+      const upPressed = inputMap["w"] || inputMap["arrowup"] || movementTouch.up;
+      const downPressed = inputMap["s"] || inputMap["arrowdown"] || movementTouch.down;
+      const leftPressed = inputMap["a"] || inputMap["arrowleft"] || movementTouch.left;
+      const rightPressed = inputMap["d"] || inputMap["arrowright"] || movementTouch.right;
+
+      if (upPressed) move = move.add(forward);
+      if (downPressed) move = move.add(forward.scale(-1));
+      if (leftPressed) move = move.add(right.scale(-1));
+      if (rightPressed) move = move.add(right);
+
+      if (move.lengthSquared() > 0) {
+        move.normalize();
+        const delta = move.scale(speed * dt);
+        playerRoot.position = playerRoot.position.add(delta);
+      }
+
+      const w = currentWorld();
+      const ground = worldGrounds[w.id];
+      if (ground) {
+        const centerX = ground.position.x;
+        const dx = playerRoot.position.x - centerX;
+        const dz = playerRoot.position.z - 0;
+        const r = Math.sqrt(dx * dx + dz * dz);
+        const maxR = 13;
+        if (r > maxR) {
+          const factor = maxR / r;
+          playerRoot.position.x = centerX + dx * factor;
+          playerRoot.position.z = 0 + dz * factor;
+        }
+        playerRoot.position.y = 1;
+      }
+    }
+
+    function performClick(fromCrystal) {
+      const clickGain = getClickPower();
+      gameState.clicks += clickGain;
+      const coinGain = getCoinGainFromClick();
+      gameState.coins += coinGain;
+
+      if (gameState.clicks > gameState.bestClicks) {
+        gameState.bestClicks = gameState.clicks;
+      }
+
+      updateHUD();
+      saveGame();
+      buildLeaderboardPanel();
+
+      if (sfx.click) sfx.click.play();
+      if (!fromCrystal) {
+        btnClick.style.transform = "scale(0.96) translateY(1px)";
+        setTimeout(() => {
+          btnClick.style.transform = "";
+        }, 80);
+      }
+    }
+
+    // ==========================
+    // JOYSTICK BINDING (TOUCH)
+    // ==========================
+    function bindJoy(btn, dirKey) {
+      const setDir = (value) => {
+        movementTouch[dirKey] = value;
+        if (value) btn.classList.add("joy-active");
+        else btn.classList.remove("joy-active");
+      };
+      btn.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        btn.setPointerCapture(e.pointerId);
+        setDir(true);
+      });
+      btn.addEventListener("pointerup", (e) => {
+        e.preventDefault();
+        setDir(false);
+      });
+      btn.addEventListener("pointercancel", () => setDir(false));
+      btn.addEventListener("pointerleave", () => setDir(false));
+    }
+
+    // ==========================
+    // MAIN INIT
+    // ==========================
+    window.addEventListener("DOMContentLoaded", () => {
+      const canvas = document.getElementById("renderCanvas");
+      engine = new BABYLON.Engine(canvas, true, {
+        preserveDrawingBuffer: true,
+        stencil: true,
+        disableWebGL2Support: false
+      });
+
+      scene = createScene(engine, canvas);
+
+      const loaded = safeLoad();
+      if (loaded) {
+        applyLoadedData(loaded);
+        switchWorldVisual(currentWorld(), true);
+      }
+
+      updateHUD();
+      buildEggPanel();
+      buildPetList();
+      buildUpgradePanel();
+      buildWorldPanel();
+      buildLeaderboardPanel();
+
+      bindButtonPointer(btnClick, () => performClick(false));
+
+      bindButtonPointer(btnEggs, () => {
+        closeAllPanels();
+        buildEggPanel();
+        buildPetList();
+        panelEggs.style.display = "flex";
+      });
+
+      bindButtonPointer(btnUpgrades, () => {
+        closeAllPanels();
+        buildUpgradePanel();
+        panelUpgrades.style.display = "flex";
+      });
+
+      bindButtonPointer(btnRebirth, () => {
+        closeAllPanels();
+        updateHUD();
+        panelRebirth.style.display = "flex";
+      });
+
+      bindButtonPointer(btnPrestige, () => {
+        closeAllPanels();
+        updateHUD();
+        panelPrestige.style.display = "flex";
+      });
+
+      bindButtonPointer(btnWorlds, () => {
+        closeAllPanels();
+        buildWorldPanel();
+        panelWorlds.style.display = "flex";
+      });
+
+      bindButtonPointer(btnLeaderboard, () => {
+        closeAllPanels();
+        buildLeaderboardPanel();
+        panelLeaderboard.style.display = "flex";
+      });
+
+      bindButtonPointer(btnDoRebirth, () => {
+        doRebirth();
+        updateHUD();
+      });
+
+      bindButtonPointer(btnDoPrestige, () => {
+        doPrestige();
+        updateHUD();
+      });
+
+      // Virtuelles D-Pad
+      bindJoy(joyUp, "up");
+      bindJoy(joyDown, "down");
+      bindJoy(joyLeft, "left");
+      bindJoy(joyRight, "right");
+
+      // Auto-Click Loop
+      setInterval(() => {
+        const auto = getAutoClickPerSecond();
+        if (auto > 0) {
+          gameState.clicks += auto;
+          gameState.coins += auto * 0.5;
+          if (gameState.clicks > gameState.bestClicks) {
+            gameState.bestClicks = gameState.clicks;
+          }
+          updateHUD();
+          saveGame();
+        }
+      }, 1000);
+
+      // periodisches Autosave
+      setInterval(saveGame, 10000);
+
+      engine.runRenderLoop(() => {
+        if (scene) scene.render();
+      });
+
+      window.addEventListener("resize", () => {
+        engine.resize();
+      });
+    });
+  </script>
+</body>
+</html>
